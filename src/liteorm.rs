@@ -3,17 +3,21 @@
 use lite_orm::Model;
 
 #[derive(Debug, Clone, PartialEq, Model)]
-#[lite_orm(schema = "public", table = "stories")]
-pub struct Story {
+#[lite_orm(schema = "public", table = "users")]
+pub struct User {
     #[lite_orm(primary_key, auto_increment)]
     pub id: i32,
-    pub title: String,
+    pub email: String,
+    pub name: Option<String>,
+    pub active: bool,
+    pub created_at: lite_orm::types::DateTime<lite_orm::types::Utc>,
 }
 
-impl Story {
-    pub const RELATION_CHALLENGES: lite_orm::RelationMetadata = lite_orm::RelationMetadata {
-        name: "challenges",
-        target: "Challenge",
+#[allow(dead_code)]
+impl User {
+    pub const RELATION_POSTS: lite_orm::RelationMetadata = lite_orm::RelationMetadata {
+        name: "posts",
+        target: "Post",
         fields: &[],
         references: &[],
         many: true,
@@ -21,23 +25,22 @@ impl Story {
 }
 
 #[derive(Debug, Clone, PartialEq, Model)]
-#[lite_orm(schema = "public", table = "challenges")]
-pub struct Challenge {
+#[lite_orm(schema = "public", table = "posts")]
+pub struct Post {
     #[lite_orm(primary_key, auto_increment)]
     pub id: i32,
     pub title: String,
-    pub created_at: lite_orm::types::DateTime<lite_orm::types::Utc>,
-    pub story_id: i32,
-    pub audiourl: String,
-    pub imageurl: String,
-    pub reward: Option<String>,
+    pub content: String,
+    pub published: bool,
+    pub author_id: i32,
 }
 
-impl Challenge {
-    pub const RELATION_STORY: lite_orm::RelationMetadata = lite_orm::RelationMetadata {
-        name: "story",
-        target: "Story",
-        fields: &["storyId"],
+#[allow(dead_code)]
+impl Post {
+    pub const RELATION_AUTHOR: lite_orm::RelationMetadata = lite_orm::RelationMetadata {
+        name: "author",
+        target: "User",
+        fields: &["authorId"],
         references: &["id"],
         many: false,
     };

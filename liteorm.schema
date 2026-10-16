@@ -4,23 +4,24 @@ datasource db {
   directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
-struct Story {
-  id         Int32       @id @default(autoincrement())
-  title      String
-  challenges Challenge[]
+struct User {
+  id        Int32     @id @default(autoincrement())
+  email     String    @unique
+  name      String?
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now()) @map("created_at")
+  posts     Post[]
 
-  @@map("stories")
+  @@map("users")
 }
 
-struct Challenge {
+struct Post {
   id        Int32    @id @default(autoincrement())
   title     String
-  createdAt DateTime @default(now()) @map("created_at")
-  storyId   Int32    @map("story_id")
-  audiourl  String
-  imageurl  String
-  reward    String?
-  story     Story    @relation(fields: [storyId], references: [id])
+  content   String
+  published Boolean  @default(false)
+  authorId  Int32    @map("author_id")
+  author    User     @relation(fields: [authorId], references: [id])
 
-  @@map("challenges")
+  @@map("posts")
 }

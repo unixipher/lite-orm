@@ -1,11 +1,11 @@
-INSERT INTO public.stories (title)
-VALUES ('The first story')
-ON CONFLICT DO NOTHING;
+INSERT INTO public.users (email, name, active)
+VALUES ('alice@example.com', 'Alice Vance', true)
+ON CONFLICT (email) DO NOTHING;
 
-INSERT INTO public.challenges (title, story_id, audiourl, imageurl, reward)
-SELECT 'The first challenge', id, '/audio/first.mp3', '/images/first.webp', NULL
-FROM public.stories
-WHERE title = 'The first story'
+INSERT INTO public.posts (title, content, published, author_id)
+SELECT 'Getting Started with LiteORM', 'LiteORM makes PostgreSQL in Rust delightful.', true, id
+FROM public.users
+WHERE email = 'alice@example.com'
   AND NOT EXISTS (
-    SELECT 1 FROM public.challenges WHERE title = 'The first challenge'
+    SELECT 1 FROM public.posts WHERE title = 'Getting Started with LiteORM'
   );

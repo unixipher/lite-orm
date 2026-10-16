@@ -512,8 +512,9 @@ fn singular(value: &str) -> String {
 mod tests {
     #[test]
     fn singularizes_common_table_names() {
-        assert_eq!(super::singular("stories"), "story");
-        assert_eq!(super::singular("challenges"), "challenge");
+        assert_eq!(super::singular("categories"), "category");
+        assert_eq!(super::singular("users"), "user");
+        assert_eq!(super::singular("posts"), "post");
         assert_eq!(super::singular("address"), "address");
     }
 }

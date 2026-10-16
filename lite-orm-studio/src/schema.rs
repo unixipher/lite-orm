@@ -435,20 +435,20 @@ mod tests {
               provider = "postgresql"
               url = env("DATABASE_URL")
             }
-            struct Story {
+            struct User {
               id Int32 @id @default(autoincrement())
             }
-            struct Challenge {
+            struct Post {
               id Int @id @default(autoincrement())
-              storyId Int32
-              story Story @relation(fields: [storyId], references: [id])
+              userId Int32
+              user User @relation(fields: [userId], references: [id])
             }
             "#,
         )
         .unwrap();
         let relation = &schema.models[1].fields[2];
         assert!(matches!(relation.kind, FieldType::Relation { .. }));
-        assert_eq!(relation.relation_fields, ["storyId"]);
+        assert_eq!(relation.relation_fields, ["userId"]);
         assert_eq!(relation.relation_references, ["id"]);
     }
 
