@@ -92,4 +92,8 @@ Current scope includes schema validation and deterministic model generation,
 PostgreSQL scalar types, async CRUD, typed filters, safe mutation guards, and
 transactional migrations, PostgreSQL introspection, and additive schema
 diffing. Next are generated input types, nested relation queries, destructive
-migration planning with explicit confirmation, and a Prisma-style client facade.
+migration planning with explicit confirmation, and an ergonomic Rust client facade.
+
+LiteORM's tested guarantees and current engineering roadmap are documented in
+[`docs/reliability.md`](docs/reliability.md). Prisma and Drizzle are sources of
+inspiration, but LiteORM has its own Rust-first API, scope, and architecture.

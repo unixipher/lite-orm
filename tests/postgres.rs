@@ -33,11 +33,15 @@ fn compiles_postgres_selects() {
 #[test]
 fn compiles_richer_predicates() {
     let query = User::select()
-        .filter(User::id.in_list([1_i64, 2, 3]).or(User::email.is_null()))
+        .filter(
+            User::id
+                .in_list([1_i64, 2, 3])
+                .or(User::email.ilike("%@example.com")),
+        )
         .compile();
     assert_eq!(
         query.sql,
-        "SELECT \"id\", \"name\", \"email\", \"active\" FROM \"app\".\"users\" WHERE (\"id\" IN ($1, $2, $3) OR \"email\" IS NULL)"
+        "SELECT \"id\", \"name\", \"email\", \"active\" FROM \"app\".\"users\" WHERE (\"id\" IN ($1, $2, $3) OR \"email\" ILIKE $4)"
     );
 }
 

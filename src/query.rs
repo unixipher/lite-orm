@@ -110,6 +110,15 @@ impl<M> Column<M, String> {
     }
 }
 
+impl<M> Column<M, Option<String>> {
+    pub fn like(self, pattern: impl IntoValue) -> Expr<M> {
+        Expr::comparison(self.name, "LIKE", pattern)
+    }
+    pub fn ilike(self, pattern: impl IntoValue) -> Expr<M> {
+        Expr::comparison(self.name, "ILIKE", pattern)
+    }
+}
+
 pub enum Expr<M> {
     Comparison {
         column: &'static str,

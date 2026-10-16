@@ -35,6 +35,6 @@ third-party extension requires it; package count is not an architecture goal.
 6. Extension surface: middleware hooks, custom PostgreSQL types, query policies.
 7. Separate UI integration through the contract and migration-plan formats.
 
-The workflow follows Prisma's schema-first approach while the implementation
+The workflow is inspired by Prisma's schema-first approach while the implementation
 keeps contracts, plans, PostgreSQL lowering, and runtime separate. No source
 implementation is copied; the Rust API and runtime are original.

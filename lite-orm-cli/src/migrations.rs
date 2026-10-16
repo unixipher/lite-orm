@@ -36,10 +36,13 @@ pub async fn dev(db: &Database, schema: &Schema, name: &str, root: &Path) -> Res
 }
 
 pub async fn deploy(db: &Database, root: &Path, namespace: &str) -> Result<(), String> {
-    ensure_table(db, namespace).await?;
     let lock_key = format!("lite_orm_migrations:{namespace}");
     lock(db, &lock_key).await?;
-    let result = deploy_locked(db, root, namespace).await;
+    let result = async {
+        ensure_table(db, namespace).await?;
+        deploy_locked(db, root, namespace).await
+    }
+    .await;
     let unlock_result = unlock(db, &lock_key).await;
     match (result, unlock_result) {
         (Err(error), _) => Err(error),
