@@ -1,0 +1,26 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+struct Story {
+  id         Int32       @id @default(autoincrement())
+  title      String
+  challenges Challenge[]
+
+  @@map("stories")
+}
+
+struct Challenge {
+  id        Int32    @id @default(autoincrement())
+  title     String
+  createdAt DateTime @default(now()) @map("created_at")
+  storyId   Int32    @map("story_id")
+  audiourl  String
+  imageurl  String
+  reward    String?
+  story     Story    @relation(fields: [storyId], references: [id])
+
+  @@map("challenges")
+}

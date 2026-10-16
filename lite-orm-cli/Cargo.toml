@@ -1,0 +1,18 @@
+[package]
+name = "lite-orm-cli"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+description = "Schema and code generation CLI for lite-orm"
+
+[[bin]]
+name = "liteorm"
+path = "src/main.rs"
+
+[dependencies]
+chrono = "0.4"
+dotenvy = "0.15"
+heck = "0.5"
+lite-orm = { path = ".." }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+

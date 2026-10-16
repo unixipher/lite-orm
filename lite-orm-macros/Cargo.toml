@@ -1,0 +1,16 @@
+[package]
+name = "lite-orm-macros"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+description = "Derive macros for lite-orm"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+heck = "0.5"
+proc-macro2 = "1"
+quote = "1"
+syn = { version = "2", features = ["full"] }
+

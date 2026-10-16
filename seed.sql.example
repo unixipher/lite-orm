@@ -1,0 +1,11 @@
+INSERT INTO public.stories (title)
+VALUES ('The first story')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO public.challenges (title, story_id, audiourl, imageurl, reward)
+SELECT 'The first challenge', id, '/audio/first.mp3', '/images/first.webp', NULL
+FROM public.stories
+WHERE title = 'The first story'
+  AND NOT EXISTS (
+    SELECT 1 FROM public.challenges WHERE title = 'The first challenge'
+  );
