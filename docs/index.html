@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LiteORM — Schema-First PostgreSQL ORM for Rust</title>
+  <meta name="description" content="Schema-first, type-safe PostgreSQL ORM and Native Desktop Studio for Rust.">
+  <link rel="icon" type="image/png" href="assets/logo.png">
+  <style>
+    :root {
+      --bg: #FFFEFA;
+      --bg-surface: #F5F4EE;
+      --bg-elevated: #EBEAE3;
+      --bg-hover: #E3E2DA;
+      --border-subtle: rgba(0, 0, 0, 0.08);
+      --border-default: rgba(0, 0, 0, 0.18);
+      --border-strong: #000000;
+      --text: #000000;
+      --text-secondary: rgba(0, 0, 0, 0.72);
+      --text-muted: rgba(0, 0, 0, 0.45);
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, -apple-system, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    }
+
+    [data-theme="dark"] {
+      --bg: #000000;
+      --bg-surface: #0e0e0e;
+      --bg-elevated: #181818;
+      --bg-hover: #222222;
+      --border-subtle: rgba(255, 254, 250, 0.12);
+      --border-default: rgba(255, 254, 250, 0.24);
+      --border-strong: #FFFEFA;
+      --text: #FFFEFA;
+      --text-secondary: rgba(255, 254, 250, 0.75);
+      --text-muted: rgba(255, 254, 250, 0.45);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    /* Container */
+    .container {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Header Navigation */
+    header {
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border-default);
+      z-index: 100;
+      backdrop-filter: blur(8px);
+    }
+
+    .nav-inner {
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text);
+    }
+
+    .brand-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      border: 1px solid var(--border-default);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #FFFEFA;
+    }
+
+    [data-theme="dark"] .brand-icon {
+      background: #000000;
+      border-color: rgba(255, 254, 250, 0.3);
+    }
+
+    .brand-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    [data-theme="dark"] .brand-icon img {
+      filter: invert(1);
+    }
+
+    .brand-title {
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-badge {
+      font-size: 9px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      padding: 2px 6px;
+      border: 1px solid var(--border-default);
+      border-radius: 4px;
+      color: var(--text-muted);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .nav-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 13.5px;
+      font-weight: 600;
+      transition: color 0.15s ease;
+    }
+
+    .nav-links a:hover {
+      color: var(--text);
+    }
+
+    .theme-btn {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 5px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .theme-btn:hover {
+      background: var(--text);
+      color: var(--bg);
+    }
+
+    /* Hero Section */
+    .hero {
+      padding: 80px 0 60px;
+      text-align: center;
+    }
+
+    .hero-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 12px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      margin-bottom: 24px;
+    }
+
+    .hero h1 {
+      font-size: 52px;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      line-height: 1.1;
+      margin-bottom: 20px;
+      max-width: 840px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .hero p {
+      font-size: 19px;
+      color: var(--text-secondary);
+      max-width: 680px;
+      margin: 0 auto 36px;
+      font-weight: 400;
+      line-height: 1.5;
+    }
+
+    .hero-actions {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 36px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 13.5px;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-primary {
+      background: var(--text);
+      color: var(--bg);
+      border: 1px solid var(--text);
+    }
+
+    .btn-primary:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      color: var(--text);
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-hover);
+      border-color: var(--text);
+    }
+
+    .install-box {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      cursor: pointer;
+      transition: border-color 0.15s ease;
+    }
+
+    .install-box:hover {
+      border-color: var(--text);
+    }
+
+    .copy-tag {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border: 1px solid var(--border-default);
+      border-radius: 4px;
+      color: var(--text-muted);
+    }
+
+    /* Code Demo Box */
+    .code-demo {
+      margin: 50px auto 70px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.05);
+      text-align: left;
+    }
+
+    .demo-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-default);
+      padding: 0 16px;
+      height: 48px;
+      background: var(--bg);
+    }
+
+    .demo-tabs {
+      display: flex;
+      gap: 6px;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 12px;
+      cursor: pointer;
+      color: var(--text-secondary);
+      transition: all 0.12s ease;
+    }
+
+    .tab-btn.active {
+      background: var(--text);
+      color: var(--bg);
+      font-weight: 700;
+    }
+
+    .demo-content {
+      padding: 24px;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.6;
+      display: none;
+    }
+
+    .demo-content.active {
+      display: block;
+    }
+
+    pre code {
+      font-family: inherit;
+    }
+
+    /* Features Grid */
+    .section-title {
+      text-align: center;
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 12px;
+    }
+
+    .section-desc {
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 16px;
+      max-width: 600px;
+      margin: 0 auto 48px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-bottom: 80px;
+    }
+
+    .card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: 10px;
+      padding: 28px 24px;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+
+    .card:hover {
+      border-color: var(--text);
+      transform: translateY(-2px);
+    }
+
+    .card-badge {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 4px;
+      border: 1px solid var(--border-default);
+      margin-bottom: 16px;
+      color: var(--text);
+    }
+
+    .card h3 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      letter-spacing: -0.01em;
+    }
+
+    .card p {
+      font-size: 13.5px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* Studio Showcase */
+    .studio-showcase {
+      margin-bottom: 90px;
+    }
+
+    .studio-mockup {
+      background: var(--bg);
+      border: 1px solid var(--border-default);
+      border-radius: 12px;
+      box-shadow: 0 20px 48px rgba(0, 0, 0, 0.08);
+      overflow: hidden;
+    }
+
+    .mockup-bar {
+      height: 44px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-default);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 12px;
+    }
+
+    .mockup-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .mockup-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 1px solid var(--border-default);
+    }
+
+    .mockup-title {
+      font-size: 11.5px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      margin-left: 8px;
+    }
+
+    .mockup-body {
+      display: flex;
+      min-height: 380px;
+    }
+
+    .mockup-sidebar {
+      width: 220px;
+      border-right: 1px solid var(--border-default);
+      background: var(--bg);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .mockup-nav-item {
+      padding: 7px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+
+    .mockup-nav-item.active {
+      background: var(--bg-elevated);
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    .mockup-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .mockup-toolbar {
+      height: 48px;
+      border-bottom: 1px solid var(--border-default);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+    }
+
+    .mockup-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      text-align: left;
+    }
+
+    .mockup-table th {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-default);
+      padding: 8px 12px;
+      font-weight: 700;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .mockup-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .pill-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 8px;
+      border: 1px solid var(--border-default);
+      border-radius: 4px;
+      background: var(--bg-surface);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .pill-badge {
+      background: var(--text);
+      color: var(--bg);
+      font-size: 9px;
+      font-weight: 800;
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+
+    /* Steps Section */
+    .steps-section {
+      margin-bottom: 90px;
+    }
+
+    .step-list {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .step-item {
+      display: flex;
+      gap: 20px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: 10px;
+      padding: 20px 24px;
+    }
+
+    .step-num {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 1px solid var(--border-strong);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    .step-content {
+      flex: 1;
+    }
+
+    .step-content h4 {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .step-content p {
+      font-size: 13.5px;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+    }
+
+    .step-code {
+      background: var(--bg);
+      border: 1px solid var(--border-default);
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      overflow-x: auto;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border-default);
+      padding: 48px 0;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .footer-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 20px;
+    }
+
+    .footer-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .footer-links a:hover {
+      color: var(--text);
+    }
+
+    @media (max-width: 840px) {
+      .hero h1 { font-size: 36px; }
+      .grid-3 { grid-template-columns: 1fr; }
+      .mockup-body { flex-direction: column; }
+      .mockup-sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border-default); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <header>
+    <div class="container nav-inner">
+      <a href="#" class="brand">
+        <div class="brand-icon">
+          <img src="assets/logo.png" alt="LiteORM Logo">
+        </div>
+        <span class="brand-title">LiteORM</span>
+        <span class="brand-badge">RUST</span>
+      </a>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#quickstart">Quickstart</a>
+        <a href="#studio">Studio</a>
+        <a href="https://github.com/mrinmoyhalder/lite-orm" target="_blank" rel="noopener">GitHub</a>
+        <button class="theme-btn" id="theme-toggle">DARK</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero-pill">LITEORM v0.1 • SCHEMA-FIRST POSTGRESQL</div>
+      <h1>Type-Safe PostgreSQL ORM & Desktop Studio for Rust</h1>
+      <p>
+        Define your schema once. Generate strictly typed, compile-time safe Rust queries.
+        Ship with transactional migrations and a native cross-platform Desktop Studio.
+      </p>
+
+      <div class="hero-actions">
+        <a href="#quickstart" class="btn btn-primary">Get Started</a>
+        <a href="https://github.com/mrinmoyhalder/lite-orm" target="_blank" rel="noopener" class="btn btn-secondary">View on GitHub</a>
+        <div class="install-box" onclick="copyInstallCmd()">
+          <span>cargo add lite-orm</span>
+          <span class="copy-tag" id="copy-btn">COPY</span>
+        </div>
+      </div>
+
+      <!-- Code Demo -->
+      <div class="code-demo">
+        <div class="demo-header">
+          <div class="demo-tabs">
+            <button class="tab-btn active" onclick="switchTab(0)">liteorm.schema</button>
+            <button class="tab-btn" onclick="switchTab(1)">queries.rs</button>
+            <button class="tab-btn" onclick="switchTab(2)">migration.sql</button>
+          </div>
+          <span style="font-size: 11px; font-family: var(--font-mono); color: var(--text-muted);">ZERO JS • STRICT TYPES</span>
+        </div>
+
+        <div class="demo-content active" id="tab-0">
+<pre><code>datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+struct User {
+  id        Int32    @id @default(autoincrement())
+  email     String   @unique
+  name      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  posts     Post[]
+}
+
+struct Post {
+  id        Int32    @id @default(autoincrement())
+  title     String
+  content   String?
+  userId    Int32    @map("user_id")
+  user      User     @relation(fields: [userId], references: [id])
+}</code></pre>
+        </div>
+
+        <div class="demo-content" id="tab-1">
+<pre><code>mod liteorm;
+use lite_orm::{Database, Model};
+use liteorm::{User, Post};
+
+#[tokio::main]
+async fn main() -> Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
+    let db = Database::connect_env().await?;
+
+    // Type-safe SELECT with parameterized WHERE
+    let active_users = db
+        .all(User::select()
+            .where_(User::ACTIVE.equals(true))
+            .limit(20))
+        .await?;
+
+    // Safe deletion guarded against unconstrained drops
+    db.delete(Post::delete().where_(Post::USER_ID.equals(12))).await?;
+
+    Ok(())
+}</code></pre>
+        </div>
+
+        <div class="demo-content" id="tab-2">
+<pre><code>-- Transactional, idempotent PostgreSQL migration
+BEGIN;
+
+CREATE TABLE "User" (
+  "id" SERIAL PRIMARY KEY,
+  "email" TEXT NOT NULL UNIQUE,
+  "name" TEXT NOT NULL,
+  "active" BOOLEAN NOT NULL DEFAULT true,
+  "created_at" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE "Post" (
+  "id" SERIAL PRIMARY KEY,
+  "title" TEXT NOT NULL,
+  "content" TEXT,
+  "user_id" INTEGER NOT NULL REFERENCES "User"("id")
+);
+
+COMMIT;</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section id="features">
+      <h2 class="section-title">Engineered for Rust Reliability</h2>
+      <p class="section-desc">Prisma's developer ergonomics fused with Rust's uncompromising safety and performance.</p>
+
+      <div class="grid-3">
+        <div class="card">
+          <span class="card-badge">SAFETY</span>
+          <h3>Guarded Mutations</h3>
+          <p>Destructive mutations like <code>UPDATE</code> and <code>DELETE</code> strictly require filter predicates or an explicit override, preventing accidental database wipes.</p>
+        </div>
+
+        <div class="card">
+          <span class="card-badge">TRANSACTIONS</span>
+          <h3>Atomic Migrations</h3>
+          <p>Every generated migration and its audit log execute inside a single PostgreSQL transaction with schema-scoped session advisory locks for zero race conditions.</p>
+        </div>
+
+        <div class="card">
+          <span class="card-badge">DESKTOP</span>
+          <h3>Native Studio</h3>
+          <p>100% native desktop management app built with Dioxus Desktop. No web server, zero JS bloat, and instantaneous live relation inspections.</p>
+        </div>
+
+        <div class="card">
+          <span class="card-badge">INTROSPECTION</span>
+          <h3>Bi-Directional Sync</h3>
+          <p>Run <code>liteorm db pull</code> to reverse-engineer existing PostgreSQL tables into schemas, or <code>liteorm db push</code> to apply additive changes instantly.</p>
+        </div>
+
+        <div class="card">
+          <span class="card-badge">SQL</span>
+          <h3>Safe Parameterization</h3>
+          <p>All query values use PostgreSQL bound parameters and never string concatenation. Full support for platform TLS via rustls.</p>
+        </div>
+
+        <div class="card">
+          <span class="card-badge">DESIGN</span>
+          <h3>Monochrome Precision</h3>
+          <p>Distraction-free high-contrast duo-tone interface strictly built with <code>#FFFEFA</code> and <code>#000000</code>. Pure, focused, and crisp.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Studio Showcase -->
+    <section id="studio" class="studio-showcase">
+      <h2 class="section-title">LiteORM Desktop Studio</h2>
+      <p class="section-desc">Inspect, filter, and create database records natively on macOS, Linux, and Windows.</p>
+
+      <div class="studio-mockup">
+        <div class="mockup-bar">
+          <div class="mockup-dots">
+            <span class="mockup-dot"></span>
+            <span class="mockup-dot"></span>
+            <span class="mockup-dot"></span>
+          </div>
+          <span class="mockup-title">LiteORM Studio (Desktop) — postgresql://localhost:5432/my_app</span>
+        </div>
+        <div class="mockup-body">
+          <div class="mockup-sidebar">
+            <div style="font-size: 10px; font-family: var(--font-mono); color: var(--text-muted); margin-bottom: 6px;">MODELS (4)</div>
+            <div class="mockup-nav-item active">
+              <span>User</span>
+              <span style="font-size: 10px; font-family: var(--font-mono); color: var(--text-muted);">TBL</span>
+            </div>
+            <div class="mockup-nav-item">
+              <span>Post</span>
+              <span style="font-size: 10px; font-family: var(--font-mono); color: var(--text-muted);">TBL</span>
+            </div>
+            <div class="mockup-nav-item">
+              <span>Story</span>
+              <span style="font-size: 10px; font-family: var(--font-mono); color: var(--text-muted);">TBL</span>
+            </div>
+            <div class="mockup-nav-item">
+              <span>Challenge</span>
+              <span style="font-size: 10px; font-family: var(--font-mono); color: var(--text-muted);">TBL</span>
+            </div>
+          </div>
+          <div class="mockup-main">
+            <div class="mockup-toolbar">
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <input type="text" placeholder="Search text fields..." style="background: var(--bg); border: 1px solid var(--border-default); border-radius: 6px; padding: 4px 8px; font-size: 11px; color: var(--text); outline: none;">
+                <span class="pill-btn">FILTER</span>
+                <span class="pill-btn" style="background: var(--text); color: var(--bg); border-color: var(--text);">+ Add Record</span>
+              </div>
+              <span style="font-size: 11px; font-family: var(--font-mono); color: var(--text-muted);">3 records loaded</span>
+            </div>
+            <table class="mockup-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>EMAIL</th>
+                  <th>NAME</th>
+                  <th>ACTIVE</th>
+                  <th>RELATIONS</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>1</code></td>
+                  <td>alice@liteorm.dev</td>
+                  <td>Alice Vance</td>
+                  <td><strong style="font-family: var(--font-mono);">true</strong></td>
+                  <td><span class="pill-btn"><span class="pill-badge">3</span> Post</span></td>
+                </tr>
+                <tr>
+                  <td><code>2</code></td>
+                  <td>bob@liteorm.dev</td>
+                  <td>Bob Smith</td>
+                  <td><strong style="font-family: var(--font-mono);">true</strong></td>
+                  <td><span class="pill-btn"><span class="pill-badge">1</span> Post</span></td>
+                </tr>
+                <tr>
+                  <td><code>3</code></td>
+                  <td>charlie@liteorm.dev</td>
+                  <td>Charlie Brown</td>
+                  <td><span style="font-family: var(--font-mono); color: var(--text-muted);">false</span></td>
+                  <td><span class="pill-btn"><span class="pill-badge">0</span> Post</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Quickstart Steps -->
+    <section id="quickstart" class="steps-section">
+      <h2 class="section-title">Get Started in Seconds</h2>
+      <p class="section-desc">Follow the standard schema-first workflow from zero to production.</p>
+
+      <div class="step-list">
+        <div class="step-item">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <h4>Initialize project and schema</h4>
+            <p>Generate a starter <code>liteorm.schema</code> and <code>.env</code> file with database connection string.</p>
+            <div class="step-code">liteorm init</div>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <h4>Sync with PostgreSQL</h4>
+            <p>Directly push additive changes to PostgreSQL during rapid prototyping, or create versioned migration files.</p>
+            <div class="step-code">liteorm db push        # Direct additive sync<br>liteorm migrate dev    # Versioned transactional migration</div>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <h4>Generate Rust models and launch Studio</h4>
+            <p>Compile schema definitions into strictly typed Rust structs and launch the cross-platform desktop UI.</p>
+            <div class="step-code">liteorm generate      # Generates src/liteorm.rs<br>liteorm studio        # Launches native Desktop Studio</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container footer-inner">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-weight: 700; color: var(--text);">LiteORM</span>
+        <span>•</span>
+        <span>MIT OR Apache-2.0</span>
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/mrinmoyhalder/lite-orm">GitHub Repository</a>
+        <a href="https://github.com/mrinmoyhalder/lite-orm/blob/main/docs/reliability.md">Reliability Guarantees</a>
+        <a href="https://github.com/mrinmoyhalder/lite-orm/blob/main/docs/ARCHITECTURE.md">Architecture</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Tab switching
+    function switchTab(idx) {
+      document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+        btn.classList.toggle('active', i === idx);
+      });
+      document.querySelectorAll('.demo-content').forEach((content, i) => {
+        content.classList.toggle('active', i === idx);
+      });
+    }
+
+    // Install command copy
+    function copyInstallCmd() {
+      navigator.clipboard.writeText('cargo add lite-orm');
+      const tag = document.getElementById('copy-btn');
+      tag.textContent = 'COPIED!';
+      setTimeout(() => { tag.textContent = 'COPY'; }, 1800);
+    }
+
+    // Theme toggle
+    const themeBtn = document.getElementById('theme-toggle');
+    themeBtn.addEventListener('click', () => {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      if (isDark) {
+        document.documentElement.removeAttribute('data-theme');
+        themeBtn.textContent = 'DARK';
+      } else {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        themeBtn.textContent = 'LIGHT';
+      }
+    });
+  </script>
+</body>
+</html>
