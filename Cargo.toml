@@ -7,8 +7,14 @@ name = "lite-orm"
 version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
-description = "A small, strongly typed ORM for Rust"
-repository = "https://github.com/mrinmoyhalder/lite-orm"
+description = "A lightweight, schema-first PostgreSQL ORM for Rust"
+repository = "https://github.com/unixipher/lite-orm"
+homepage = "https://github.com/unixipher/lite-orm"
+documentation = "https://docs.rs/lite-orm"
+readme = "README.md"
+keywords = ["orm", "postgresql", "database", "async", "schema"]
+categories = ["database", "asynchronous"]
+publish = ["crates-io"]
 
 [dependencies]
 bytes = "1"

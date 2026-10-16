@@ -4,6 +4,12 @@ version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "Derive macros for lite-orm"
+repository = "https://github.com/unixipher/lite-orm"
+homepage = "https://github.com/unixipher/lite-orm"
+documentation = "https://docs.rs/lite-orm"
+keywords = ["orm", "postgresql", "database", "derive", "macros"]
+categories = ["database", "development-tools::procedural-macro-helpers"]
+publish = ["crates-io"]
 
 [lib]
 proc-macro = true

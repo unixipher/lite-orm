@@ -4,6 +4,13 @@ version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "Schema and code generation CLI for lite-orm"
+repository = "https://github.com/unixipher/lite-orm"
+homepage = "https://github.com/unixipher/lite-orm"
+documentation = "https://docs.rs/lite-orm"
+readme = "../README.md"
+keywords = ["orm", "postgresql", "database", "migration", "cli"]
+categories = ["database", "command-line-utilities", "development-tools"]
+publish = ["crates-io"]
 
 [[bin]]
 name = "liteorm"
@@ -13,6 +20,6 @@ path = "src/main.rs"
 chrono = "0.4"
 dotenvy = "0.15"
 heck = "0.5"
-lite-orm = { path = ".." }
+lite-orm = { path = "..", version = "0.1.0" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
