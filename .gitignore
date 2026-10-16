@@ -3,4 +3,5 @@
 *.db
 *.db-shm
 *.db-wal
-
+*.tar.gz
+*.zip
