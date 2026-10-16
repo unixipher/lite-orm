@@ -1,25 +1,25 @@
 use std::collections::HashSet;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Schema {
     pub datasource: Datasource,
     pub generator: Generator,
     pub models: Vec<Model>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Datasource {
     pub provider: Option<String>,
     pub url_env: Option<String>,
     pub direct_url_env: Option<String>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Generator {
     pub output: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Model {
     pub name: String,
     pub table: String,
@@ -27,7 +27,7 @@ pub struct Model {
     pub fields: Vec<Field>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Field {
     pub name: String,
     pub column: String,

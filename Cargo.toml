@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "lite-orm-cli", "lite-orm-macros"]
+members = [".", "lite-orm-cli", "lite-orm-macros", "demo", "lite-orm-studio"]
 resolver = "2"
 
 [package]

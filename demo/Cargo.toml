@@ -1,0 +1,9 @@
+[package]
+name = "demo"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+lite-orm = { path = ".." }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+chrono = "0.4"

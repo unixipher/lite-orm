@@ -2,6 +2,7 @@ mod database;
 mod generate;
 mod migrations;
 mod schema;
+mod studio;
 
 use std::path::{Path, PathBuf};
 
@@ -41,7 +42,7 @@ async fn run() -> Result<(), String> {
         ["db", "pull"] => db_pull(&arguments.schema).await,
         ["db", "seed"] => db_seed(&arguments.schema, Path::new("seed.sql")).await,
         ["db", "seed", "--file", file] => db_seed(&arguments.schema, Path::new(file)).await,
-        ["studio"] => studio(&arguments.schema),
+        ["studio"] | ["studio", ..] => studio::launch(&arguments.schema),
         _ => Err(format!(
             "unknown command `{}`; run `liteorm help`",
             words.join(" ")
@@ -189,20 +190,7 @@ async fn db_seed(schema_path: &Path, seed: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn studio(path: &Path) -> Result<(), String> {
-    let _ = read_schema(path)?;
-    let executable =
-        std::env::var("LITEORM_STUDIO_BIN").unwrap_or_else(|_| "liteorm-studio".into());
-    let status = std::process::Command::new(&executable).arg("--schema").arg(path).status()
-        .map_err(|error| format!("could not launch `{executable}`: {error}. Install the separate Studio UI or set LITEORM_STUDIO_BIN"))?;
-    if status.success() {
-        Ok(())
-    } else {
-        Err(format!("Studio exited with {status}"))
-    }
-}
-
-fn project_root(path: &Path) -> &Path {
+pub(crate) fn project_root(path: &Path) -> &Path {
     path.parent()
         .filter(|path| !path.as_os_str().is_empty())
         .unwrap_or(Path::new("."))

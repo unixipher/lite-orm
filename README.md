@@ -85,8 +85,12 @@ columns, keys, uniqueness, and foreign-key relations back into the schema.
 
 Potentially destructive type changes are rejected instead of being applied
 silently. `db seed` executes `seed.sql`, or another file supplied with
-`--file`. Studio remains a separate UI binary; `liteorm studio` launches
-`liteorm-studio`, configurable through `LITEORM_STUDIO_BIN`.
+`--file`. `liteorm studio` starts a fast, local browser UI at
+`http://127.0.0.1:5555` for browsing, searching, sorting, creating, editing,
+and deleting records or running SQL. Use `--port <PORT>` to select a port or
+`--no-open` to prevent the browser from opening automatically. The database
+connection stays in the local Rust process and Studio requires a per-launch
+session token for every API request.
 
 Current scope includes schema validation and deterministic model generation,
 PostgreSQL scalar types, async CRUD, typed filters, safe mutation guards, and
