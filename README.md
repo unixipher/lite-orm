@@ -32,21 +32,31 @@
 
 ## Quickstart
 
-### 1. Initialize Project
+### 1. Installation
+
+Install the CLI and Native Desktop Studio via Cargo:
+
+```bash
+cargo install lite-orm-cli lite-orm-studio
+```
+
+And add LiteORM to your backend project:
+
+```bash
+cargo add lite-orm
+```
+
+### 2. Initialize Project
 
 Initialize a new LiteORM configuration in your repository:
 
 ```bash
-# If using pre-built binary
 liteorm init
-
-# Or via Cargo in this workspace
-cargo run -p lite-orm-cli --bin liteorm -- init
 ```
 
 This creates a starter `liteorm.schema` and a `.env` file template.
 
-### 2. Configure Database Connection
+### 3. Configure Database Connection
 
 Set your PostgreSQL connection string in `.env`:
 
@@ -179,6 +189,8 @@ LiteORM schemas use declarative syntax for models, column mappings, attributes, 
 - `DateTime`, `Date`, `Time`
 - `Uuid`
 - `Json`
+- `Enum` (Custom PostgreSQL native `enum` types)
+- `Array` (`String[]`, `Int32[]`, `Enum[]`, etc.)
 - Relations (`User`, `Post[]`)
 
 ---
@@ -196,7 +208,7 @@ LiteORM schemas use declarative syntax for models, column mappings, attributes, 
 | `liteorm migrate deploy` | Applies pending migrations in transactional order (production & CI) |
 | `liteorm migrate status` | Displays current migration status and applied history |
 | `liteorm db push` | Directly applies additive schema changes without creating migrations |
-| `liteorm db pull` | Introspects tables, columns, constraints, and foreign keys from PostgreSQL |
+| `liteorm db pull` | Introspects tables, columns, constraints, enums, and arrays from PostgreSQL |
 | `liteorm db seed [--file <file>]` | Runs SQL seed script (defaults to `seed.sql`) |
 | `liteorm studio` | Launches the cross-platform Native Desktop Studio application |
 
@@ -239,11 +251,13 @@ db.delete(User::delete().where_(User::ID.equals(15))).await?;
 LiteORM includes a fast, zero-JS desktop application (`lite-orm-studio`) written directly in Rust using Dioxus Desktop, Tao, and Wry:
 
 - **Cross-Platform Native:** Native Cocoa/AppKit window on macOS, Win32/WebView2 on Windows, and GTK/WebKitGTK on Linux.
+- **Live Row Count Badges:** Sidebar navigation shows real-time record counts for every table (e.g. `1,250 rows` or `1 row`) queried via ultra-fast chunked batch queries (~64ms).
+- **Responsive Layout:** Elastic sidebar with text truncation, non-wrapping toolbar controls, and horizontally scrollable data grids with sticky headers.
 - **Relational Navigation:** Relation pills in the grid show connected record counts (e.g. `Posts [5]`). Clicking any pill opens the connected records directly without leaving your table context.
 - **Add Record Modal:** Click `+ Add Record` in the toolbar to validate and insert rows into any table, with automatic identification of auto-incrementing primary keys and type-safe inputs.
 - **Column-Level Filters:** Add rules with live operators (`contains`, `equals`, `starts_with`, `ends_with`, `>`, `<`, `>=`, `<=`).
 - **Full Text Search & Pagination:** Instantly search text fields across rows with pagination controls.
-- **Monochrome Palette:** Clean, distraction-free aesthetic strictly using `#FFFEFA` canvas and `#000000` ink.
+- **Monochrome & Light/Dark Palette:** Clean, distraction-free aesthetic strictly using `#FFFEFA` canvas and `#000000` ink with instant Light/Dark mode toggling.
 
 ---
 

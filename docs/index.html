@@ -653,7 +653,7 @@
   <main class="container">
     <!-- Hero -->
     <section class="hero">
-      <div class="hero-pill">LITEORM v0.1 • SCHEMA-FIRST POSTGRESQL</div>
+      <div class="hero-pill">LITEORM v0.1.3 • SCHEMA-FIRST POSTGRESQL</div>
       <h1>Type-Safe PostgreSQL ORM & Desktop Studio for Rust</h1>
       <p>
         Define your schema once. Generate strictly typed, compile-time safe Rust queries.
@@ -664,7 +664,7 @@
         <a href="#quickstart" class="btn btn-primary">Get Started</a>
         <a href="https://github.com/unixipher/lite-orm" target="_blank" rel="noopener" class="btn btn-secondary">View on GitHub</a>
         <div class="install-box" onclick="copyInstallCmd()">
-          <span>cargo add lite-orm</span>
+          <span>cargo install lite-orm-cli lite-orm-studio</span>
           <span class="copy-tag" id="copy-btn">COPY</span>
         </div>
       </div>
@@ -778,7 +778,7 @@ COMMIT;</code></pre>
         <div class="card">
           <span class="card-badge">INTROSPECTION</span>
           <h3>Bi-Directional Sync</h3>
-          <p>Run <code>liteorm db pull</code> to reverse-engineer existing PostgreSQL tables into schemas, or <code>liteorm db push</code> to apply additive changes instantly.</p>
+          <p>Run <code>liteorm db pull</code> to reverse-engineer existing PostgreSQL tables, native ENUMs, and array types into schemas, or <code>liteorm db push</code> to apply additive changes instantly.</p>
         </div>
 
         <div class="card">
@@ -798,7 +798,7 @@ COMMIT;</code></pre>
     <!-- Studio Showcase -->
     <section id="studio" class="studio-showcase">
       <h2 class="section-title">LiteORM Desktop Studio</h2>
-      <p class="section-desc">Inspect, filter, and create database records natively on macOS, Linux, and Windows.</p>
+      <p class="section-desc">Inspect, filter, and create database records natively on macOS, Linux, and Windows with real-time row counts and responsive data tables.</p>
 
       <div class="studio-mockup">
         <div class="mockup-bar">
@@ -814,11 +814,11 @@ COMMIT;</code></pre>
             <div style="font-size: 10px; font-family: var(--font-mono); color: var(--text-muted); margin-bottom: 6px;">MODELS (2)</div>
             <div class="mockup-nav-item active">
               <span>User</span>
-              <span style="font-size: 10px; font-family: var(--font-mono); color: var(--text-muted);">TBL</span>
+              <span style="font-size: 10px; font-family: var(--font-mono); color: var(--text-muted); margin-left: auto; background: var(--bg); border: 1px solid var(--border-default); padding: 1px 6px; border-radius: 8px;">3 rows</span>
             </div>
             <div class="mockup-nav-item">
               <span>Post</span>
-              <span style="font-size: 10px; font-family: var(--font-mono); color: var(--text-muted);">TBL</span>
+              <span style="font-size: 10px; font-family: var(--font-mono); color: var(--text-muted); margin-left: auto; background: var(--bg); border: 1px solid var(--border-default); padding: 1px 6px; border-radius: 8px;">42 rows</span>
             </div>
           </div>
           <div class="mockup-main">
@@ -878,23 +878,32 @@ COMMIT;</code></pre>
         <div class="step-item">
           <div class="step-num">1</div>
           <div class="step-content">
-            <h4>Initialize project and schema</h4>
-            <p>Generate a starter <code>liteorm.schema</code> and <code>.env</code> file with database connection string.</p>
-            <div class="step-code">liteorm init</div>
+            <h4>Install CLI & Desktop Studio</h4>
+            <p>Install the <code>liteorm</code> command-line tools and native Desktop Studio application globally via Cargo.</p>
+            <div class="step-code">cargo install lite-orm-cli lite-orm-studio</div>
           </div>
         </div>
 
         <div class="step-item">
           <div class="step-num">2</div>
           <div class="step-content">
-            <h4>Sync with PostgreSQL</h4>
-            <p>Directly push additive changes to PostgreSQL during rapid prototyping, or create versioned migration files.</p>
-            <div class="step-code">liteorm db push        # Direct additive sync<br>liteorm migrate dev    # Versioned transactional migration</div>
+            <h4>Initialize project and schema</h4>
+            <p>Generate a starter <code>liteorm.schema</code> and <code>.env</code> file, or introspect an existing database.</p>
+            <div class="step-code">liteorm init          # Scaffolds starter schema<br>liteorm db pull       # Or reverse-engineer existing PostgreSQL database</div>
           </div>
         </div>
 
         <div class="step-item">
           <div class="step-num">3</div>
+          <div class="step-content">
+            <h4>Sync and Migrate with PostgreSQL</h4>
+            <p>Directly push additive changes during prototyping, or generate versioned transactional migrations.</p>
+            <div class="step-code">liteorm db push        # Direct additive sync<br>liteorm migrate dev    # Versioned transactional migration</div>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-num">4</div>
           <div class="step-content">
             <h4>Generate Rust models and launch Studio</h4>
             <p>Compile schema definitions into strictly typed Rust structs and launch the cross-platform desktop UI.</p>
@@ -934,7 +943,7 @@ COMMIT;</code></pre>
 
     // Install command copy
     function copyInstallCmd() {
-      navigator.clipboard.writeText('cargo add lite-orm');
+      navigator.clipboard.writeText('cargo install lite-orm-cli lite-orm-studio');
       const tag = document.getElementById('copy-btn');
       tag.textContent = 'COPIED!';
       setTimeout(() => { tag.textContent = 'COPY'; }, 1800);
