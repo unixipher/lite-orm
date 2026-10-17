@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use heck::{ToLowerCamelCase, ToUpperCamelCase};
 use lite_orm::Database;
 
-use crate::schema::{Datasource, Field, FieldType, Generator, Model, Schema};
+use crate::schema::{Datasource, Enum, Field, FieldType, Generator, Model, Schema};
 
 #[derive(Default)]
 struct DatabaseState {
@@ -172,8 +172,31 @@ pub async fn diff(db: &Database, schema: &Schema) -> Result<String, String> {
 }
 
 pub async fn pull(db: &Database, output: Option<String>) -> Result<Schema, String> {
+    let enum_rows = db.client().query(
+        "SELECT t.typname, e.enumlabel
+         FROM pg_type t
+         JOIN pg_enum e ON t.oid = e.enumtypid
+         JOIN pg_namespace n ON t.typnamespace = n.oid
+         WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
+         ORDER BY t.typname, e.enumsortorder",
+        &[],
+    ).await.map_err(|error| error.to_string())?;
+    let mut enums: Vec<Enum> = vec![];
+    for row in enum_rows {
+        let typname: String = row.get(0);
+        let label: String = row.get(1);
+        if let Some(existing) = enums.iter_mut().find(|e| e.name == typname) {
+            existing.variants.push(label);
+        } else {
+            enums.push(Enum {
+                name: typname,
+                variants: vec![label],
+            });
+        }
+    }
+
     let rows = db.client().query(
-        "SELECT table_schema, table_name, column_name, data_type, is_nullable, column_default, is_identity
+        "SELECT table_schema, table_name, column_name, data_type, is_nullable, column_default, is_identity, udt_name
          FROM information_schema.columns
          WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
            AND table_name <> '_lite_orm_migrations'
@@ -227,10 +250,11 @@ pub async fn pull(db: &Database, output: Option<String>) -> Result<Schema, Strin
             .unwrap_or_default();
         let default: Option<String> = row.get(5);
         let identity: String = row.get(6);
+        let udt_name: String = row.get(7);
         models[index].fields.push(Field {
             name: column.to_lower_camel_case(),
             column,
-            kind: field_type(&data_type)?,
+            kind: map_postgres_type(&data_type, &udt_name, &enums)?,
             optional: row.get::<_, String>(4) == "YES",
             id,
             unique,
@@ -352,6 +376,7 @@ pub async fn pull(db: &Database, output: Option<String>) -> Result<Schema, Strin
             direct_url_env: None,
         },
         generator: Generator { output },
+        enums,
         models,
     })
 }
@@ -402,19 +427,22 @@ fn column_definition(field: &Field) -> Result<String, String> {
     Ok(sql)
 }
 
-fn postgres_type(kind: &FieldType) -> Result<&'static str, String> {
+fn postgres_type(kind: &FieldType) -> Result<String, String> {
     match kind {
-        FieldType::Int32 => Ok("INTEGER"),
-        FieldType::Int64 => Ok("BIGINT"),
-        FieldType::Float => Ok("DOUBLE PRECISION"),
-        FieldType::Boolean => Ok("BOOLEAN"),
-        FieldType::String => Ok("TEXT"),
-        FieldType::Bytes => Ok("BYTEA"),
-        FieldType::Json => Ok("JSONB"),
-        FieldType::Uuid => Ok("UUID"),
-        FieldType::Date => Ok("DATE"),
-        FieldType::Time => Ok("TIME"),
-        FieldType::DateTime => Ok("TIMESTAMPTZ"),
+        FieldType::Int32 => Ok("INTEGER".into()),
+        FieldType::Int64 => Ok("BIGINT".into()),
+        FieldType::Float => Ok("DOUBLE PRECISION".into()),
+        FieldType::Boolean => Ok("BOOLEAN".into()),
+        FieldType::String => Ok("TEXT".into()),
+        FieldType::Bytes => Ok("BYTEA".into()),
+        FieldType::Json => Ok("JSONB".into()),
+        FieldType::Uuid => Ok("UUID".into()),
+        FieldType::Date => Ok("DATE".into()),
+        FieldType::Time => Ok("TIME".into()),
+        FieldType::DateTime => Ok("TIMESTAMPTZ".into()),
+        FieldType::Enum(name) => Ok(quote(name)),
+        FieldType::Array(inner) => Ok(format!("{}[]", postgres_type(inner)?)),
+        FieldType::Unsupported(name) => Ok(quote(name)),
         FieldType::Relation { .. } => Err("relation fields are not PostgreSQL columns".into()),
     }
 }
@@ -432,6 +460,9 @@ fn postgres_information_type(kind: &FieldType) -> Result<String, String> {
         FieldType::Date => "date",
         FieldType::Time => "time without time zone",
         FieldType::DateTime => "timestamp with time zone",
+        FieldType::Enum(_) => "USER-DEFINED",
+        FieldType::Array(_) => "ARRAY",
+        FieldType::Unsupported(_) => "USER-DEFINED",
         FieldType::Relation { .. } => {
             return Err("relation fields are not PostgreSQL columns".into());
         }
@@ -439,8 +470,12 @@ fn postgres_information_type(kind: &FieldType) -> Result<String, String> {
     .into())
 }
 
-fn field_type(value: &str) -> Result<FieldType, String> {
-    match value {
+fn map_postgres_type(
+    data_type: &str,
+    udt_name: &str,
+    enums: &[crate::schema::Enum],
+) -> Result<FieldType, String> {
+    match data_type {
         "smallint" | "integer" => Ok(FieldType::Int32),
         "bigint" => Ok(FieldType::Int64),
         "real" | "double precision" | "numeric" => Ok(FieldType::Float),
@@ -452,8 +487,41 @@ fn field_type(value: &str) -> Result<FieldType, String> {
         "date" => Ok(FieldType::Date),
         "time without time zone" | "time with time zone" => Ok(FieldType::Time),
         "timestamp without time zone" | "timestamp with time zone" => Ok(FieldType::DateTime),
+        "USER-DEFINED" => {
+            if enums.iter().any(|e| e.name == udt_name) {
+                Ok(FieldType::Enum(udt_name.to_string()))
+            } else if udt_name == "citext" {
+                Ok(FieldType::String)
+            } else {
+                Ok(FieldType::Unsupported(udt_name.to_string()))
+            }
+        }
+        "ARRAY" => {
+            let element_udt = udt_name.strip_prefix('_').unwrap_or(udt_name);
+            let element_type = match element_udt {
+                "int2" | "int4" => FieldType::Int32,
+                "int8" => FieldType::Int64,
+                "float4" | "float8" | "numeric" => FieldType::Float,
+                "bool" => FieldType::Boolean,
+                "text" | "varchar" | "bpchar" => FieldType::String,
+                "bytea" => FieldType::Bytes,
+                "json" | "jsonb" => FieldType::Json,
+                "uuid" => FieldType::Uuid,
+                "date" => FieldType::Date,
+                "time" | "timetz" => FieldType::Time,
+                "timestamp" | "timestamptz" => FieldType::DateTime,
+                other => {
+                    if enums.iter().any(|e| e.name == other) {
+                        FieldType::Enum(other.to_string())
+                    } else {
+                        FieldType::Unsupported(other.to_string())
+                    }
+                }
+            };
+            Ok(FieldType::Array(Box::new(element_type)))
+        }
         _ => Err(format!(
-            "PostgreSQL type `{value}` is not supported by lite-orm yet"
+            "PostgreSQL type `{data_type}` is not supported by lite-orm yet"
         )),
     }
 }

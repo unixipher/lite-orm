@@ -470,6 +470,29 @@ fn row_field_value(row: &Row, index: usize, kind: &FieldType) -> Result<Value, S
         FieldType::Time => opt!(chrono::NaiveTime),
         FieldType::DateTime => opt!(chrono::DateTime<chrono::Utc>),
         FieldType::Bytes => Ok(Value::String("<bytes>".into())),
+        FieldType::Enum(_) | FieldType::Unsupported(_) => row
+            .try_get::<_, Option<lite_orm::EnumValue>>(index)
+            .map(|v| v.map(|e| Value::String(e.0)).unwrap_or(Value::Null))
+            .map_err(|e| e.to_string()),
+        FieldType::Array(inner) => match **inner {
+            FieldType::Int32 => opt!(Vec<i32>),
+            FieldType::Int64 => row
+                .try_get::<_, Option<Vec<i64>>>(index)
+                .map(|v| {
+                    v.map(|arr| {
+                        Value::Array(
+                            arr.into_iter()
+                                .map(|n| Value::String(n.to_string()))
+                                .collect(),
+                        )
+                    })
+                    .unwrap_or(Value::Null)
+                })
+                .map_err(|e| e.to_string()),
+            FieldType::String => opt!(Vec<String>),
+            FieldType::Boolean => opt!(Vec<bool>),
+            _ => Ok(Value::String("<array>".into())),
+        },
         FieldType::Relation { .. } => Ok(Value::Null),
     }
 }
@@ -498,6 +521,9 @@ fn pg_type(kind: &FieldType) -> &'static str {
         FieldType::DateTime => "timestamptz",
         FieldType::Bytes => "bytea",
         FieldType::Json => "jsonb",
+        FieldType::Enum(_) => "text",
+        FieldType::Array(_) => "text[]",
+        FieldType::Unsupported(_) => "text",
         FieldType::Relation { .. } => "text",
     }
 }

@@ -18,6 +18,61 @@ pub enum Value {
     Time(chrono::NaiveTime),
     DateTime(chrono::NaiveDateTime),
     DateTimeUtc(chrono::DateTime<chrono::Utc>),
+    Enum(EnumValue),
+    ArrayInt32(Vec<i32>),
+    ArrayInt64(Vec<i64>),
+    ArrayText(Vec<String>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EnumValue(pub String);
+
+impl From<String> for EnumValue {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&str> for EnumValue {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+
+impl std::fmt::Display for EnumValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl ToSql for EnumValue {
+    fn to_sql(
+        &self,
+        _ty: &Type,
+        out: &mut BytesMut,
+    ) -> Result<IsNull, Box<dyn std::error::Error + Sync + Send>> {
+        out.extend_from_slice(self.0.as_bytes());
+        Ok(IsNull::No)
+    }
+
+    fn accepts(_ty: &Type) -> bool {
+        true
+    }
+
+    to_sql_checked!();
+}
+
+impl<'a> tokio_postgres::types::FromSql<'a> for EnumValue {
+    fn from_sql(
+        _ty: &Type,
+        raw: &'a [u8],
+    ) -> Result<Self, Box<dyn std::error::Error + Sync + Send>> {
+        Ok(EnumValue(std::str::from_utf8(raw)?.to_owned()))
+    }
+
+    fn accepts(_ty: &Type) -> bool {
+        true
+    }
 }
 
 pub trait IntoValue {
@@ -56,6 +111,10 @@ value_impl!(chrono::NaiveDate, Date);
 value_impl!(chrono::NaiveTime, Time);
 value_impl!(chrono::NaiveDateTime, DateTime);
 value_impl!(chrono::DateTime<chrono::Utc>, DateTimeUtc);
+value_impl!(EnumValue, Enum);
+value_impl!(Vec<i32>, ArrayInt32);
+value_impl!(Vec<i64>, ArrayInt64);
+value_impl!(Vec<String>, ArrayText);
 
 impl IntoValue for i8 {
     fn into_value(self) -> Value {

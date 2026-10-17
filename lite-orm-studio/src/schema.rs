@@ -1,27 +1,33 @@
 #![allow(dead_code)]
-
 use std::collections::HashSet;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Schema {
     pub datasource: Datasource,
     pub generator: Generator,
+    pub enums: Vec<Enum>,
     pub models: Vec<Model>,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Datasource {
     pub provider: Option<String>,
     pub url_env: Option<String>,
     pub direct_url_env: Option<String>,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Generator {
     pub output: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Enum {
+    pub name: String,
+    pub variants: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Model {
     pub name: String,
     pub table: String,
@@ -29,7 +35,7 @@ pub struct Model {
     pub fields: Vec<Field>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Field {
     pub name: String,
     pub column: String,
@@ -56,12 +62,16 @@ pub enum FieldType {
     Date,
     Time,
     DateTime,
+    Enum(String),
+    Array(Box<FieldType>),
+    Unsupported(String),
     Relation { model: String, many: bool },
 }
 
 enum Block {
     Datasource,
     Generator,
+    Enum(Enum),
     Model(Model),
 }
 
@@ -79,6 +89,7 @@ pub fn parse(source: &str) -> Result<Schema, Vec<String>> {
 
         if line == "}" {
             match current.take() {
+                Some(Block::Enum(item)) => schema.enums.push(item),
                 Some(Block::Model(model)) => schema.models.push(model),
                 Some(_) => {}
                 None => errors.push(format!("line {line_number}: unexpected `}}`")),
@@ -91,6 +102,12 @@ pub fn parse(source: &str) -> Result<Schema, Vec<String>> {
             match words.as_slice() {
                 ["datasource", _, "{"] => current = Some(Block::Datasource),
                 ["generator", _, "{"] => current = Some(Block::Generator),
+                ["enum", name, "{"] => {
+                    current = Some(Block::Enum(Enum {
+                        name: (*name).into(),
+                        variants: vec![],
+                    }))
+                }
                 ["struct" | "model", name, "{"] => {
                     current = Some(Block::Model(Model {
                         name: (*name).into(),
@@ -100,7 +117,7 @@ pub fn parse(source: &str) -> Result<Schema, Vec<String>> {
                     }))
                 }
                 _ => errors.push(format!(
-                    "line {line_number}: expected datasource, generator, or struct block"
+                    "line {line_number}: expected datasource, generator, enum, or struct block"
                 )),
             }
             continue;
@@ -109,6 +126,7 @@ pub fn parse(source: &str) -> Result<Schema, Vec<String>> {
         let result = match current.as_mut().expect("checked") {
             Block::Datasource => parse_datasource(line, &mut schema.datasource),
             Block::Generator => parse_generator(line, &mut schema.generator),
+            Block::Enum(item) => parse_enum_line(line, item),
             Block::Model(model) => parse_model_line(line, model),
         };
         if let Err(error) = result {
@@ -119,7 +137,7 @@ pub fn parse(source: &str) -> Result<Schema, Vec<String>> {
     if current.is_some() {
         errors.push("schema ends inside an unclosed block".into());
     }
-    validate(&schema, &mut errors);
+    validate(&mut schema, &mut errors);
     if errors.is_empty() {
         Ok(schema)
     } else {
@@ -155,6 +173,14 @@ fn parse_generator(line: &str, generator: &mut Generator) -> Result<(), String> 
     match key {
         "output" => generator.output = Some(quoted(value)?.into()),
         _ => return Err(format!("unknown generator property `{key}`")),
+    }
+    Ok(())
+}
+
+fn parse_enum_line(line: &str, item: &mut Enum) -> Result<(), String> {
+    let variant = line.trim();
+    if !variant.is_empty() {
+        item.variants.push(variant.to_owned());
     }
     Ok(())
 }
@@ -196,27 +222,51 @@ fn parse_model_line(line: &str, model: &mut Model) -> Result<(), String> {
 }
 
 fn parse_type(value: &str, many: bool) -> Result<FieldType, String> {
-    match value {
-        "Int" | "Int32" => Ok(FieldType::Int32),
-        "BigInt" | "Int64" => Ok(FieldType::Int64),
-        "Float" => Ok(FieldType::Float),
-        "Boolean" => Ok(FieldType::Boolean),
-        "String" => Ok(FieldType::String),
-        "Bytes" => Ok(FieldType::Bytes),
-        "Json" => Ok(FieldType::Json),
-        "Uuid" => Ok(FieldType::Uuid),
-        "Date" => Ok(FieldType::Date),
-        "Time" => Ok(FieldType::Time),
-        "DateTime" => Ok(FieldType::DateTime),
-        _ if value.chars().next().is_some_and(char::is_uppercase) => Ok(FieldType::Relation {
+    let scalar = match value {
+        "Int" | "Int32" => Some(FieldType::Int32),
+        "BigInt" | "Int64" => Some(FieldType::Int64),
+        "Float" => Some(FieldType::Float),
+        "Boolean" => Some(FieldType::Boolean),
+        "String" => Some(FieldType::String),
+        "Bytes" => Some(FieldType::Bytes),
+        "Json" => Some(FieldType::Json),
+        "Uuid" => Some(FieldType::Uuid),
+        "Date" => Some(FieldType::Date),
+        "Time" => Some(FieldType::Time),
+        "DateTime" => Some(FieldType::DateTime),
+        _ => None,
+    };
+    if let Some(inner) = scalar {
+        return if many {
+            Ok(FieldType::Array(Box::new(inner)))
+        } else {
+            Ok(inner)
+        };
+    }
+    if value.starts_with("Unsupported(\"") && value.ends_with("\")") {
+        let inner = &value["Unsupported(\"".len()..value.len() - 2];
+        let unsupported = FieldType::Unsupported(inner.to_string());
+        return if many {
+            Ok(FieldType::Array(Box::new(unsupported)))
+        } else {
+            Ok(unsupported)
+        };
+    }
+    if value
+        .chars()
+        .next()
+        .is_some_and(|c| c.is_alphabetic() || c == '_')
+    {
+        Ok(FieldType::Relation {
             model: value.into(),
             many,
-        }),
-        _ => Err(format!("unsupported field type `{value}`")),
+        })
+    } else {
+        Err(format!("unsupported field type `{value}`"))
     }
 }
 
-fn validate(schema: &Schema, errors: &mut Vec<String>) {
+fn validate(schema: &mut Schema, errors: &mut Vec<String>) {
     if schema.datasource.provider.as_deref() != Some("postgresql") {
         errors.push("datasource provider must be \"postgresql\"".into());
     }
@@ -225,6 +275,26 @@ fn validate(schema: &Schema, errors: &mut Vec<String>) {
     }
     if schema.models.is_empty() {
         errors.push("schema must define at least one model".into());
+    }
+    let mut enums_seen = HashSet::new();
+    for item in &schema.enums {
+        if !enums_seen.insert(&item.name) {
+            errors.push(format!("duplicate enum `{}`", item.name));
+        }
+    }
+    let enum_names: HashSet<String> = schema.enums.iter().map(|e| e.name.clone()).collect();
+    for model in &mut schema.models {
+        for field in &mut model.fields {
+            if let FieldType::Relation { model: target, many } = &field.kind {
+                if enum_names.contains(target) {
+                    if *many {
+                        field.kind = FieldType::Array(Box::new(FieldType::Enum(target.clone())));
+                    } else {
+                        field.kind = FieldType::Enum(target.clone());
+                    }
+                }
+            }
+        }
     }
     let mut models = HashSet::new();
     for model in &schema.models {
@@ -338,6 +408,13 @@ pub fn format(schema: &Schema) -> String {
     if let Some(path) = &schema.generator.output {
         output.push_str(&format!("\ngenerator client {{\n  output = {path:?}\n}}\n"));
     }
+    for item in &schema.enums {
+        output.push_str(&format!("\nenum {} {{\n", item.name));
+        for variant in &item.variants {
+            output.push_str(&format!("  {variant}\n"));
+        }
+        output.push_str("}\n");
+    }
     for model in &schema.models {
         output.push_str(&format!("\nstruct {} {{\n", model.name));
         let width = model
@@ -405,9 +482,32 @@ fn display_type(field: &Field) -> String {
         FieldType::Date => "Date".into(),
         FieldType::Time => "Time".into(),
         FieldType::DateTime => "DateTime".into(),
+        FieldType::Enum(name) => name.clone(),
+        FieldType::Array(inner) => format!("{}[]", display_inner(inner)),
+        FieldType::Unsupported(name) => format!("Unsupported({name:?})"),
         FieldType::Relation { model, many } => format!("{model}{}", if *many { "[]" } else { "" }),
     };
     format!("{value}{}", if field.optional { "?" } else { "" })
+}
+
+fn display_inner(kind: &FieldType) -> String {
+    match kind {
+        FieldType::Int32 => "Int32".into(),
+        FieldType::Int64 => "Int64".into(),
+        FieldType::Float => "Float".into(),
+        FieldType::Boolean => "Boolean".into(),
+        FieldType::String => "String".into(),
+        FieldType::Bytes => "Bytes".into(),
+        FieldType::Json => "Json".into(),
+        FieldType::Uuid => "Uuid".into(),
+        FieldType::Date => "Date".into(),
+        FieldType::Time => "Time".into(),
+        FieldType::DateTime => "DateTime".into(),
+        FieldType::Enum(name) => name.clone(),
+        FieldType::Array(inner) => format!("{}[]", display_inner(inner)),
+        FieldType::Unsupported(name) => format!("Unsupported({name:?})"),
+        FieldType::Relation { model, .. } => model.clone(),
+    }
 }
 
 #[cfg(test)]
@@ -458,5 +558,39 @@ mod tests {
         let once = format(&parsed);
         let twice = format(&parse(&once).unwrap());
         assert_eq!(once, twice);
+    }
+
+    #[test]
+    fn parses_enums_and_arrays() {
+        let schema = parse(
+            r#"
+            datasource db {
+              provider = "postgresql"
+              url = env("DATABASE_URL")
+            }
+            enum Role {
+              admin
+              member
+            }
+            struct User {
+              id Int32 @id
+              role Role
+              tags String[]
+            }
+            "#,
+        )
+        .unwrap();
+        assert_eq!(schema.enums.len(), 1);
+        assert_eq!(schema.enums[0].name, "Role");
+        assert_eq!(schema.enums[0].variants, vec!["admin", "member"]);
+        assert_eq!(schema.models[0].fields[1].kind, FieldType::Enum("Role".into()));
+        assert_eq!(
+            schema.models[0].fields[2].kind,
+            FieldType::Array(Box::new(FieldType::String))
+        );
+        let formatted = format(&schema);
+        assert!(formatted.contains("enum Role"));
+        let parsed_again = parse(&formatted).unwrap();
+        assert_eq!(schema, parsed_again);
     }
 }

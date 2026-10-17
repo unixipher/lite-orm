@@ -169,11 +169,20 @@ async fn db_pull(path: &Path) -> Result<(), String> {
     let db = database::connect(project_root(path)).await?;
     let pulled = database::pull(&db, output).await?;
     std::fs::write(path, schema::format(&pulled)).map_err(|error| error.to_string())?;
-    println!(
-        "Introspected {} structs into {}",
-        pulled.models.len(),
-        path.display()
-    );
+    if pulled.enums.is_empty() {
+        println!(
+            "Introspected {} structs into {}",
+            pulled.models.len(),
+            path.display()
+        );
+    } else {
+        println!(
+            "Introspected {} structs and {} enums into {}",
+            pulled.models.len(),
+            pulled.enums.len(),
+            path.display()
+        );
+    }
     Ok(())
 }
 

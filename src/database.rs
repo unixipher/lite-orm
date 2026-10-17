@@ -192,6 +192,10 @@ fn params(values: &[Value]) -> Vec<&(dyn ToSql + Sync)> {
             Value::Time(value) => value,
             Value::DateTime(value) => value,
             Value::DateTimeUtc(value) => value,
+            Value::Enum(value) => value,
+            Value::ArrayInt32(value) => value,
+            Value::ArrayInt64(value) => value,
+            Value::ArrayText(value) => value,
         })
         .collect()
 }
