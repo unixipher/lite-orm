@@ -678,3 +678,50 @@ pub async fn query_connected_records(
 
     Ok(result)
 }
+
+pub async fn query_all_table_counts(
+    db: &Database,
+    models: &[Model],
+) -> std::collections::HashMap<String, i64> {
+    let mut counts = std::collections::HashMap::new();
+    if models.is_empty() {
+        return counts;
+    }
+
+    let existing_tables: std::collections::HashSet<(String, String)> = match db
+        .client()
+        .query(
+            "SELECT table_schema, table_name FROM information_schema.tables WHERE table_type = 'BASE TABLE'",
+            &[],
+        )
+        .await
+    {
+        Ok(rows) => rows.into_iter().map(|r| (r.get(0), r.get(1))).collect(),
+        Err(_) => std::collections::HashSet::new(),
+    };
+
+    let valid_models: Vec<&Model> = models
+        .iter()
+        .filter(|m| existing_tables.contains(&(m.schema.clone(), m.table.clone())))
+        .collect();
+
+    let parts: Vec<String> = valid_models
+        .iter()
+        .map(|m| {
+            let table = table_name(m);
+            format!("SELECT {:?}::text AS tbl, COUNT(*)::bigint AS cnt FROM {table}", m.name)
+        })
+        .collect();
+
+    for chunk in parts.chunks(50) {
+        let sql = chunk.join(" UNION ALL ");
+        if let Ok(rows) = db.client().query(&sql, &[]).await {
+            for row in rows {
+                let name: String = row.get(0);
+                let cnt: i64 = row.get(1);
+                counts.insert(name, cnt);
+            }
+        }
+    }
+    counts
+}

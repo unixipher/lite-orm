@@ -82,8 +82,10 @@ body {
 
 /* Sidebar */
 .sidebar {
-  width: 250px;
-  min-width: 250px;
+  width: 280px;
+  min-width: 260px;
+  max-width: 380px;
+  flex-shrink: 0;
   background: var(--bg-sidebar);
   border-right: 1px solid var(--border-default);
   display: flex;
@@ -183,6 +185,7 @@ body {
   cursor: pointer;
   text-align: left;
   transition: all 0.12s ease;
+  min-width: 0;
 }
 
 .nav-item:hover {
@@ -196,6 +199,14 @@ body {
   font-weight: 700;
 }
 
+.nav-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .nav-tag {
   margin-left: auto;
   font-size: 10px;
@@ -203,8 +214,11 @@ body {
   color: var(--text-muted);
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
-  padding: 1px 5px;
-  border-radius: 8px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .sidebar-footer {
@@ -266,17 +280,16 @@ body {
 
 /* App Header */
 .top-bar {
-  height: 56px;
   min-height: 56px;
-  max-height: 56px;
   box-sizing: border-box;
   border-bottom: 1px solid var(--border-default);
   background: var(--bg-sidebar);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
+  padding: 10px 20px;
   gap: 16px;
+  flex-wrap: wrap;
 }
 
 .top-left {
@@ -391,6 +404,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .search-wrap {
@@ -506,10 +520,13 @@ body {
   flex: 1;
   overflow: auto;
   position: relative;
+  min-width: 0;
+  min-height: 0;
 }
 
 .data-grid {
   width: 100%;
+  min-width: max-content;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 12.5px;
@@ -626,6 +643,8 @@ body {
   background: transparent;
   color: var(--text-main);
   border: 1px solid var(--border-default);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .badge-tag-table,
@@ -933,6 +952,25 @@ enum AppView {
 
 use dioxus::desktop::tao::dpi::LogicalSize;
 
+fn format_row_count(count: i64) -> String {
+    let s = count.to_string();
+    let is_neg = count < 0;
+    let s = if is_neg { &s[1..] } else { &s };
+    let mut result = String::new();
+    let len = s.len();
+    for (i, c) in s.chars().enumerate() {
+        if i > 0 && (len - i) % 3 == 0 {
+            result.push(',');
+        }
+        result.push(c);
+    }
+    if is_neg {
+        format!("-{result}")
+    } else {
+        result
+    }
+}
+
 fn main() {
     let window = WindowBuilder::new()
         .with_title("LiteORM Studio (Desktop)")
@@ -950,6 +988,7 @@ fn main() {
 fn App() -> Element {
     let mut db = use_signal(|| None::<Arc<Database>>);
     let mut models = use_signal(Vec::<Model>::new);
+    let table_counts = use_signal(std::collections::HashMap::<String, i64>::new);
     let mut selected_idx = use_signal(|| 0_usize);
     let mut current_view = use_signal(|| AppView::Data);
 
@@ -981,6 +1020,7 @@ fn App() -> Element {
     use_hook(move || {
         let mut is_loading = is_loading;
         let mut relation_counts = relation_counts;
+        let mut table_counts = table_counts;
         is_loading.set(true);
         spawn(async move {
             // Read schema from demo or current dir
@@ -1001,12 +1041,23 @@ fn App() -> Element {
             match db::connect_db().await {
                 Ok(conn) => {
                     db.set(Some(conn.clone()));
+
+                    // Asynchronously fetch table counts for all models in fast batch
+                    let count_conn = conn.clone();
+                    let count_models = parsed_models.clone();
+                    let mut t_counts = table_counts;
+                    spawn(async move {
+                        let counts = db::query_all_table_counts(&count_conn, &count_models).await;
+                        t_counts.set(counts);
+                    });
+
                     if !parsed_models.is_empty() {
                         // Load rows for first model
                         let m = &parsed_models[0];
                         if let Ok((loaded_rows, count)) = db::query_rows(&conn, m, 1, 50, None, None, None, &[]).await {
                             rows.set(loaded_rows.clone());
                             total_records.set(count);
+                            table_counts.write().insert(m.name.clone(), count);
 
                             let relations = db::resolve_relations(m, &parsed_models);
                             let mut counts_map = std::collections::HashMap::new();
@@ -1042,6 +1093,7 @@ fn App() -> Element {
     let reload_rows = move || {
         let mut is_loading = is_loading;
         let mut relation_counts = relation_counts;
+        let mut table_counts = table_counts;
         is_loading.set(true);
         spawn(async move {
             if let Some(conn) = db() {
@@ -1057,6 +1109,9 @@ fn App() -> Element {
                     if let Ok((loaded, count)) = db::query_rows(&conn, m, page(), page_size(), s_ref, Some(&dir), search_opt, &current_filters).await {
                         rows.set(loaded.clone());
                         total_records.set(count);
+                        if current_filters.is_empty() && search_opt.is_none() {
+                            table_counts.write().insert(m.name.clone(), count);
+                        }
 
                         let relations = db::resolve_relations(m, &m_list);
                         let mut counts_map = std::collections::HashMap::new();
@@ -1152,8 +1207,17 @@ fn App() -> Element {
                                     reload_rows();
                                 },
                                 span { class: "badge-tag badge-tag-table", "TBL" }
-                                span { "{m.name}" }
-                                span { class: "nav-tag", "{m.fields.len()} col" }
+                                span { class: "nav-label", title: "{m.name}", "{m.name}" }
+                                span {
+                                    class: "nav-tag",
+                                    {
+                                        match table_counts().get(&m.name).copied() {
+                                            Some(1) => "1 row".to_string(),
+                                            Some(c) => format!("{} rows", format_row_count(c)),
+                                            None => "- rows".to_string(),
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -1210,7 +1274,18 @@ fn App() -> Element {
                         if current_view() == AppView::Data {
                             button {
                                 class: "btn btn-secondary",
-                                onclick: move |_| reload_rows(),
+                                onclick: move |_| {
+                                    reload_rows();
+                                    if let Some(conn) = db() {
+                                        let c_conn = conn.clone();
+                                        let c_models = models();
+                                        let mut t_counts = table_counts;
+                                        spawn(async move {
+                                            let counts = db::query_all_table_counts(&c_conn, &c_models).await;
+                                            t_counts.set(counts);
+                                        });
+                                    }
+                                },
                                 "Refresh"
                             }
                         }
@@ -1263,7 +1338,7 @@ fn App() -> Element {
                                 }
                             }
                             div { class: "record-stat",
-                                "{total_records()} records"
+                                "{format_row_count(total_records())} records"
                             }
                         }
 
@@ -1602,7 +1677,11 @@ fn App() -> Element {
                         }
 
                         footer { class: "table-footer",
-                            span { "Page {page()} of {((total_records() as usize).div_ceil(page_size())).max(1)}" }
+                            span {
+                                "{format_row_count(total_records())} "
+                                {if total_records() == 1 { "row" } else { "rows" }}
+                                " (Page {page()} of {((total_records() as usize).div_ceil(page_size())).max(1)})"
+                            }
                             div { class: "pager-btns",
                                 button {
                                     class: "btn btn-secondary",
