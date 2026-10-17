@@ -37,19 +37,22 @@ pub fn launch(schema_path: &Path) -> Result<(), String> {
         return Ok(());
     }
 
-    // 3. Fallback: try `cargo run -p lite-orm-studio` in the workspace root
-    println!("Launching LiteORM Studio desktop app via cargo...");
-    let status = Command::new("cargo")
-        .args(["run", "-p", "lite-orm-studio"])
-        .current_dir(root)
-        .status()
-        .map_err(|e| format!("Failed to run cargo: {e}"))?;
+    // 3. Fallback: try `cargo run -p lite-orm-studio` in the workspace root if Cargo.toml exists
+    if root.join("Cargo.toml").exists() {
+        println!("Launching LiteORM Studio desktop app via cargo...");
+        let status = Command::new("cargo")
+            .args(["run", "-p", "lite-orm-studio"])
+            .current_dir(root)
+            .status()
+            .map_err(|e| format!("Failed to run cargo: {e}"))?;
 
-    if !status.success() {
-        return Err(format!("LiteORM Studio exited with {status}"));
+        if !status.success() {
+            return Err(format!("LiteORM Studio exited with {status}"));
+        }
+        return Ok(());
     }
 
-    Ok(())
+    Err("LiteORM Studio binary was not found in PATH or next to liteorm. Install it with: cargo install lite-orm-studio (or locally: cargo install --path <path-to-lite-orm-studio>)".into())
 }
 
 #[cfg(test)]
