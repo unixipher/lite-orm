@@ -2710,7 +2710,7 @@ checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
 
 [[package]]
 name = "lite-orm"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bytes",
  "chrono",
@@ -2726,7 +2726,7 @@ dependencies = [
 
 [[package]]
 name = "lite-orm-cli"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "chrono",
  "dotenvy",
@@ -2751,7 +2751,7 @@ dependencies = [
 
 [[package]]
 name = "lite-orm-studio"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "chrono",
  "dioxus",

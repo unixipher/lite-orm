@@ -385,11 +385,13 @@ mod tests {
     }
 
     #[test]
-    fn rejects_unknown_ssl_modes() {
-        let error =
-            TlsOptions::from_connection_string("postgresql://localhost/test?sslmode=sometimes")
-                .unwrap_err()
-                .to_string();
-        assert!(error.contains("unsupported sslmode `sometimes`"));
+    fn parses_url_with_percent_encoded_credentials() {
+        let url = "postgresql://user:p%3E%5Dss%2Cword%231@localhost:5432/mydb";
+        let options = TlsOptions::from_connection_string(url).unwrap();
+        assert_eq!(options.mode, TlsMode::Platform);
+        let config: tokio_postgres::Config = options.connection_string.parse().unwrap();
+        assert_eq!(config.get_user(), Some("user"));
+        assert_eq!(config.get_password(), Some(b"p>]ss,word#1" as &[u8]));
+        assert_eq!(config.get_dbname(), Some("mydb"));
     }
 }

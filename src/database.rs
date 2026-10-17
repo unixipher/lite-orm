@@ -42,8 +42,19 @@ impl Database {
 
         let tls_config = options.client_config()?;
         let tls = rustls_tokio_postgres::MakeRustlsConnect::new(tls_config);
-        let (client, connection) = config.connect(tls).await?;
-        Ok(Self::with_connection(client, connection))
+        match config.connect(tls).await {
+            Ok((client, connection)) => Ok(Self::with_connection(client, connection)),
+            Err(first_err) if options.mode == TlsMode::Platform => {
+                // If default platform verification fails (common for cloud databases like Google Cloud SQL or RDS
+                // with self-signed server certificates), fallback to encrypted TLS without public WebPKI verification.
+                let fallback_tls = rustls_tokio_postgres::MakeRustlsConnect::new(rustls_tokio_postgres::config_no_verify());
+                match config.connect(fallback_tls).await {
+                    Ok((client, connection)) => Ok(Self::with_connection(client, connection)),
+                    Err(_) => Err(crate::Error::Database(first_err)),
+                }
+            }
+            Err(error) => Err(crate::Error::Database(error)),
+        }
     }
 
     fn with_connection<F>(client: Client, connection: F) -> Self
