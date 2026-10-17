@@ -1,6 +1,9 @@
-use tokio_postgres::types::ToSql;
+use std::future::Future;
+
+use tokio_postgres::{Client, Config, NoTls, types::ToSql};
 
 use crate::query::{quote_identifier, quote_table};
+use crate::tls::{TlsMode, TlsOptions};
 use crate::value::NULL_VALUE;
 use crate::{Delete, Model, Result, Select, Update, Value};
 
@@ -21,20 +24,44 @@ impl Database {
         Self::connect(&url).await
     }
 
+    /// Connect using PostgreSQL `sslmode` and `sslrootcert` URL or keyword
+    /// options. With no explicit mode, platform certificate verification is
+    /// used. `require` encrypts without verification; prefer `verify-full` in
+    /// production.
     pub async fn connect(url: &str) -> Result<Self> {
-        let tls_config = rustls_tokio_postgres::config_platform_verifier()
-            .map_err(|error| crate::Error::Tls(error.to_string()))?;
+        let options = TlsOptions::from_connection_string(url)?;
+        let config: Config = options
+            .connection_string
+            .parse()
+            .map_err(crate::Error::Database)?;
+
+        if options.mode == TlsMode::Disable {
+            let (client, connection) = config.connect(NoTls).await?;
+            return Ok(Self::with_connection(client, connection));
+        }
+
+        let tls_config = options.client_config()?;
         let tls = rustls_tokio_postgres::MakeRustlsConnect::new(tls_config);
-        let (client, connection) = tokio_postgres::connect(url, tls).await?;
+        let (client, connection) = config.connect(tls).await?;
+        Ok(Self::with_connection(client, connection))
+    }
+
+    fn with_connection<F>(client: Client, connection: F) -> Self
+    where
+        F: Future<Output = std::result::Result<(), tokio_postgres::Error>> + Send + 'static,
+    {
         let connection_task = tokio::spawn(async move {
             if let Err(error) = connection.await {
-                eprintln!("lite-orm PostgreSQL connection error: {error}");
+                eprintln!(
+                    "lite-orm PostgreSQL connection error: {}",
+                    crate::error::display_error_chain(&error)
+                );
             }
         });
-        Ok(Self {
+        Self {
             client,
             connection_task,
-        })
+        }
     }
 
     pub async fn execute_batch(&self, sql: &str) -> Result<()> {

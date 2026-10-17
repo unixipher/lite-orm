@@ -55,6 +55,25 @@ Set your PostgreSQL connection string in `.env`:
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/my_app
 ```
 
+TLS behavior follows PostgreSQL connection-string options:
+
+| Option | Behavior |
+|---|---|
+| `sslmode=disable` | Plain PostgreSQL using `NoTls` |
+| `sslmode=require` | TLS encryption without certificate or hostname verification |
+| `sslmode=verify-ca&sslrootcert=/path/to/server-ca.pem` | Verifies the certificate chain against the supplied private CA |
+| `sslmode=verify-full&sslrootcert=/path/to/server-ca.pem` | Verifies both the private CA chain and the connection hostname |
+| `sslmode=verify-full` | Verifies the hostname using the platform trust store |
+
+When `sslmode` is omitted, LiteORM preserves its secure default: TLS uses the
+platform certificate verifier. For `verify-full`, connect with the hostname
+listed on the server certificate; use PostgreSQL's `hostaddr` separately when
+the network connection must target a specific IP address.
+
+Paths in URL-style connection strings should be URL-encoded when necessary,
+for example `sslrootcert=%2Fsecrets%2Fserver-ca.pem`. Keyword-style connection
+strings are also supported, including quoted paths containing spaces.
+
 ### 3. Define the Schema
 
 Define models, fields, and relationships in `liteorm.schema`:
@@ -114,7 +133,7 @@ use liteorm::{User, Post};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Connect using DATABASE_URL from .env
+    // Connect using DATABASE_URL from .env, including its TLS options
     let db = Database::connect_env().await?;
 
     // Fetch up to 25 users

@@ -14,7 +14,7 @@ behavior and a regression test.
 | Atomic migrations | Every generated migration and its history insert run in one PostgreSQL transaction. |
 | Schema isolation | Generated DDL, runtime queries, and migration metadata use schema-qualified identifiers without changing `search_path`. |
 | Deterministic ordering | Migration versions use UTC rather than the machine timezone. |
-| Hosted PostgreSQL | Connections use rustls with platform certificate verification; CLI operations prefer `DATABASE_URL_UNPOOLED` and fall back to `DATABASE_URL`. |
+| Hosted PostgreSQL | Connections honor `sslmode` and `sslrootcert`, including private CAs and `NoTls`; the secure default uses rustls platform verification. CLI operations prefer `DATABASE_URL_UNPOOLED` and fall back to `DATABASE_URL`. |
 | Parameter safety | Query values use PostgreSQL bound parameters and remain outside generated SQL strings. |
 | Mutation safety | Update and delete operations require a filter unless `.all_rows()` is explicitly selected. |
 | Schema-change safety | Inferred destructive type changes stop with an error instead of silently changing columns. |

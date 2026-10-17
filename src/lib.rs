@@ -9,6 +9,7 @@ mod database;
 mod error;
 mod migration;
 mod query;
+mod tls;
 mod value;
 
 pub use database::Database;
